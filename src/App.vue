@@ -4,7 +4,7 @@ import { AI, AIOptions, User } from 'aonweb'
 import { ref } from 'vue'
 
 
-const transcript = ref('')
+const audioUrl = ref('')
 const showLoading = ref(false);
 const logOutput = ref('');  // 用于保存 console.log 输出的内容
 
@@ -41,11 +41,13 @@ const prediction = async () => {
     const aonet = new AI(ai_options)
     let price = 10
     console.log("Before prediction call");
-    let response = await aonet.prediction("/predictions/ai/funasr",
+    let response = await aonet.prediction("/predictions/ai/xtts-v2",
     {
         input:{
-          "awv": "https://aonet.ai/mgxm/d9fa255c-4c47-4fec-99ce-f190539f10c4/olle.mp3",
-          "batch_size": 300
+          "text": "Hi there, I'm your new voice clone. Try your best to upload quality audio",
+          "speaker": "https://aonet.ai/pbxt/Jt79w0xsT64R1JsiJ0LQRL8UcWspg5J4RFrU6YwEKpOT1ukS/male.wav",
+          "language": "en",
+          "cleanup_voice": false
         }
     }, price);
     showLoading.value = false
@@ -55,7 +57,7 @@ const prediction = async () => {
         response = response.data
     }
     if (response.task.exec_code == 200 && response.task.is_success) {
-        transcript.value = response.output
+        audioUrl.value = response.output
     }
   } catch (error) {
     console.log("prediction error = ", error)
@@ -75,7 +77,7 @@ const prediction = async () => {
         <text>生成</text>
       </button>
 			<div class="uni-form-item uni-column">
-        <pre class="transcript">{{ transcript }}</pre>
+        <audio v-if="audioUrl" controls :src="audioUrl"></audio> <!-- 播放生成的音频 -->
 			</div>
       <div class="log-output">
         <pre>{{ logOutput }}</pre>  <!-- 打印 console.log 输出的内容 -->
@@ -89,15 +91,6 @@ const prediction = async () => {
 .container {
 	padding: 0 6.4vw 18.4vw;
 	margin: 0;
-}
-
-.transcript {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  background: #f4f4f4;
-  padding: 10px;
-  border-radius: 5px;
-  margin-top: 10px;
 }
 
 .log-output {
