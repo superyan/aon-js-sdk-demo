@@ -4,8 +4,9 @@ import { AI, AIOptions, User } from 'aonweb'
 import { ref } from 'vue'
 
 
-const imageUrl = ref('')
+const transcript = ref('')
 const showLoading = ref(false);
+const logOutput = ref('');  // 用于保存 console.log 输出的内容
 
 
 function sleep(ms) {
@@ -33,45 +34,32 @@ const prediction = async () => {
             return
         }
     }
-    // const ai_options = new AIOptions({
-    //     appId: REPLACE_APP_ID //replace app id
-    // })
     const ai_options = new AIOptions({
         appId: 'k3ebyfaSz8b87xJb_VyEGXx_AJ0MM8ngqU7Ym3AKeW8A' //replace app id
     })
   
+    const aonet = new AI(ai_options)
     let price = 10
-    const ai = new AI(ai_options)
-    let response = await ai.prediction("/predictions/ai/stable-diffusion-3",
+    console.log("Before prediction call");
+    let response = await aonet.prediction("/predictions/ai/funasr",
     {
         input:{
-            "prompt": "with smoke, half ice and half fire and ultra realistic in detail.wolf, typography, dark fantasy, wildlife photography, vibrant, cinematic and on a black background",
-            "cfg": 3.5,
-            "steps": 28,
-            "aspect_ratio": "9:16",
-            "output_format": "png",
-            "output_quality": 90,
-            "negative_prompt": "",
-            "prompt_strength": 0.85
+          "awv": "https://aonet.ai/mgxm/d9fa255c-4c47-4fec-99ce-f190539f10c4/olle.mp3",
+          "batch_size": 300
         }
-    },price);
+    }, price);
     showLoading.value = false
+    logOutput.value = JSON.stringify(response, null, 2);  // 将响应内容保存到 logOutput
+    console.log("test", response);
     if (response && response.code == 200 && response.data) {
         response = response.data
     }
     if (response.task.exec_code == 200 && response.task.is_success) {
-        console.log("test",response.output);
-        let url = response.output
-        if (Array.isArray(response.output)) {
-          url = response.output && response.output.length && response.output[0]
-        }
-        if (typeof url == 'object' || typeof url == 'Object') {
-          return
-        }
-        imageUrl.value = url
+        transcript.value = response.output
     }
   } catch (error) {
-    console.log("prediction error = ",error)
+    console.log("prediction error = ", error)
+    logOutput.value = `prediction error = ${error}`;  // 将错误内容保存到 logOutput
     showLoading.value = false
   }
 }
@@ -87,8 +75,11 @@ const prediction = async () => {
         <text>生成</text>
       </button>
 			<div class="uni-form-item uni-column">
-        <img class="res_img" :src="imageUrl" mode=""></img> 
+        <pre class="transcript">{{ transcript }}</pre>
 			</div>
+      <div class="log-output">
+        <pre>{{ logOutput }}</pre>  <!-- 打印 console.log 输出的内容 -->
+      </div>
 		</div>
 	</div>
 </template>
@@ -98,6 +89,24 @@ const prediction = async () => {
 .container {
 	padding: 0 6.4vw 18.4vw;
 	margin: 0;
+}
+
+.transcript {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+.log-output {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #e0e0e0;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 20px;
 }
 
 </style>
