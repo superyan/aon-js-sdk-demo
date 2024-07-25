@@ -1,9 +1,13 @@
 <template>
   <div>
+    <input v-model="text" placeholder="Enter text" />
+    <input v-model="speaker" placeholder="Enter speaker URL" />
+    <input type="file" @change="handleFileUpload" accept=".wav, .m4a" />
     <button @click="prediction" :disabled="isLoading">Generate Prediction</button>
     <p v-if="isLoading">Loading...</p>
     <p v-if="message">{{ message }}</p>
-    <img v-if="outputImage" :src="outputImage" alt="Generated Image" />
+    <audio v-if="outputAudio" :src="outputAudio" controls></audio>
+    <p v-if="output">{{ output }}</p>
   </div>
 </template>
 
@@ -15,17 +19,53 @@ export default {
     return {
       isLoading: false,
       message: '',
-      outputImage: null
+      outputAudio: null,
+      output: null,
+      text: '',
+      speaker: '',
+      file: null // 新增的 data 属性，用于存储用户上传的文件
     }
   },
   methods: {
     sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     },
+    async handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const data = await this.uploadFile(formData);
+        if (data && data.code === 200 && data.data) {
+          this.speaker = data.data; // 将返回的 URL 填充到 speaker 的输入框中
+          this.message = 'File uploaded successfully!';
+        } else {
+          this.message = 'Failed to upload file. Please try again.';
+        }
+      } catch (error) {
+        console.error('Error in file upload:', error);
+        this.message = 'An error occurred during file upload. Please try again.';
+      }
+    },
+    async uploadFile(formData) {
+      const response = await fetch('https://tmp-file.aigic.ai/api/v1/upload?expires=1800&type=audio/wav', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      return data;
+    },
     async prediction() {
       this.isLoading = true;
       this.message = '';
-      this.outputImage = null;
+      this.outputAudio = null;
+      this.output = null;
 
       let user = new User()
       let is_login = await user.islogin()
@@ -54,17 +94,13 @@ export default {
       const ai = new AI(ai_options)
       
       try {
-        let response = await ai.prediction("/predictions/ai/stable-diffusion-3",
+        let response = await ai.prediction("/predictions/ai/xtts-v2",
         {
           input:{
-            "prompt": "with smoke, half ice and half fire and ultra realistic in detail.wolf, typography, dark fantasy, wildlife photography, vibrant, cinematic and on a black background",
-            "cfg": 3.5,
-            "steps": 28,
-            "aspect_ratio": "9:16",
-            "output_format": "png",
-            "output_quality": 90,
-            "negative_prompt": "",
-            "prompt_strength": 0.85
+            "text": this.text, 
+            "speaker": this.speaker, 
+            "language": "en",
+            "cleanup_voice": false
           }
         }, price);
 
@@ -74,10 +110,11 @@ export default {
 
         if (response.task.exec_code == 200 && response.task.is_success) {
           console.log("test", response.output);
-          this.outputImage = response.output;
-          this.message = "Image generated successfully!";
+          this.outputAudio = response.output;
+          this.output = JSON.stringify(response);
+          this.message = "Audio generated successfully!";
         } else {
-          this.message = "Failed to generate image. Please try again.";
+          this.message = "Failed to generate audio. Please try again.";
         }
       } catch (error) {
         console.error("Error in prediction:", error);
@@ -94,9 +131,14 @@ export default {
 button {
   margin-bottom: 10px;
 }
-img {
+audio {
   max-width: 100%;
   height: auto;
 }
+input {
+  display: block;
+  margin-bottom: 10px;
+  padding: 8px;
+  width: calc(100% - 16px);
+}
 </style>
-Made with
