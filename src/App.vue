@@ -1,112 +1,110 @@
 <template>
-    <div>
-      <textarea v-model="text" placeholder="输入要合成的文本"></textarea>
-      <input type="file" @change="handleFileUpload" accept="audio/*" />
-      <button @click="generateVoiceClone" :disabled="isLoading">生成语音克隆</button>
-      <p v-if="isLoading">处理中...</p>
-      <p v-if="message">{{ message }}</p>
-      <audio v-if="audioUrl" controls :src="audioUrl"></audio>
+  <div>
+    <button @click="prediction" :disabled="isLoading">Generate Prediction</button>
+    <p v-if="isLoading">Loading...</p>
+    <p v-if="message">{{ message }}</p>
+    <audio v-if="outputAudio" :src="outputAudio" controls></audio>
+    <div v-if="responseData">
+      <h3>AI Model Response Data:</h3>
+      <pre>{{ JSON.stringify(responseData, null, 2) }}</pre>
     </div>
-  </template>
-  
-  <script>
-  import { AI, AIOptions } from 'aonweb'
-  
-  export default {
-    data() {
-      return {
-        text: '',
-        audioFile: null,
-        isLoading: false,
-        message: '',
-        audioUrl: null
-      }
+  </div>
+</template>
+
+<script>
+import { AI, AIOptions, User } from 'aonweb'
+
+export default {
+  data() {
+    return {
+      isLoading: false,
+      message: '',
+      outputAudio: null,
+      responseData: null
+    }
+  },
+  methods: {
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     },
-    methods: {
-      handleFileUpload(event) {
-        const file = event.target.files[0];
-        if (file.size > 30 * 1024 * 1024) {
-          this.message = '文件大小不能超过 30MB';
-          return;
-        }
-        this.audioFile = file;
-      },
-      async uploadFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-  
-        try {
-          const response = await fetch('https://tmp-file.aigic.ai/api/v1/upload?expires=1800&type=audio/wav', {
-            method: 'POST',
-            body: formData
-          });
-  
-          const data = await response.json();
-          if (data.code === 200 && data.data && data.data.length) {
-            return data.data[0];
-          } else {
-            throw new Error('文件上传失败');
+    async prediction() {
+      this.isLoading = true;
+      this.message = '';
+      this.outputAudio = null;
+      this.responseData = null;
+
+      let user = new User()
+      let is_login = await user.islogin()
+      
+      if (!is_login) {
+        for (let i = 0; i < 10; i++) {
+          let result = await user.getOwnedUsers()
+          let userid = result && result._userIds && result._userIds.length && result._userIds[0]
+          if (userid && userid.length) {
+            break
           }
-        } catch (error) {
-          console.error('文件上传错误:', error);
-          throw error;
+          await this.sleep(300)       
         }
-      },
-      async generateVoiceClone() {
-        if (!this.text || !this.audioFile) {
-          this.message = '请输入文本并上传音频文件';
-          return;
-        }
-  
-        this.isLoading = true;
-        this.message = '';
-        this.audioUrl = null;
-  
-        try {
-          const uploadedFileUrl = await this.uploadFile(this.audioFile);
-  
-          const ai_options = new AIOptions({
-            appId: 'YOUR_APP_ID' // 替换为你的实际 app id
-          });
-          const ai = new AI(ai_options);
-  
-          let response = await ai.prediction("/predictions/ai/xtts-v2", {
-            input: {
-              "text": this.text,
-              "speaker": uploadedFileUrl,
-              "language": "en",
-              "cleanup_voice": false
-            }
-          });
-  
-          if (response && response.code === 200 && response.data) {
-            response = response.data;
-          }
-  
-          if (response.task.exec_code === 200 && response.task.is_success) {
-            this.audioUrl = response.output;
-            this.message = "语音克隆生成成功!";
-          } else {
-            this.message = "语音克隆生成失败,请重试。";
-          }
-        } catch (error) {
-          console.error("语音克隆出错:", error);
-          this.message = "发生错误,请重试。";
-        } finally {
+        is_login = await user.islogin()
+        if (!is_login) {
+          this.message = "Login failed, please try again later";
           this.isLoading = false;
+          return
         }
+      }
+
+      const ai_options = new AIOptions({
+        appId: 'REPLACE_APP_ID' // replace with your actual app id
+      })
+      let price = 10
+      const ai = new AI(ai_options)
+      
+      try {
+        let response = await ai.prediction("/predictions/ai/xtts-v2",
+        {
+          input:{
+            "text": "Hi there, I'm your new voice clone. Try your best to upload quality audio",
+            "speaker": "https://aonet.ai/pbxt/Jt79w0xsT64R1JsiJ0LQRL8UcWspg5J4RFrU6YwEKpOT1ukS/male.wav",
+            "language": "en",
+            "cleanup_voice": false
+          }
+        }, price);
+
+        if (response && response.code === 200 && response.data) {
+          response = response.data
+        }
+
+        if (response.task.exec_code === 200 && response.task.is_success) {
+          console.log("Audio URL:", response.output[0]);
+          this.outputAudio = response.output[0];  // Ensure this URL points to the audio file
+          this.responseData = response;
+          this.message = "Audio generated successfully!";
+        } else {
+          this.message = "Failed to generate audio. Please try again.";
+        }
+      } catch (error) {
+        console.error("Error in prediction:", error);
+        this.message = "An error occurred. Please try again.";
+      } finally {
+        this.isLoading = false;
       }
     }
   }
-  </script>
-  
-  <style scoped>
-  textarea, input, button {
-    display: block;
-    margin-bottom: 10px;
-  }
-  textarea {
-    width: 100%;
-    height: 100px;
-  }
-  </style>
+}
+</script>
+
+<style scoped>
+button {
+  margin-bottom: 10px;
+}
+audio {
+  max-width: 100%;
+  height: auto;
+}
+pre {
+  background-color: #f8f8f8;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+</style>
