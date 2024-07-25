@@ -3,11 +3,7 @@
     <button @click="prediction" :disabled="isLoading">Generate Prediction</button>
     <p v-if="isLoading">Loading...</p>
     <p v-if="message">{{ message }}</p>
-    <audio v-if="outputAudio" :src="outputAudio" controls></audio>
-    <div v-if="responseData">
-      <h3>AI Model Response Data:</h3>
-      <pre>{{ JSON.stringify(responseData, null, 2) }}</pre>
-    </div>
+    <img v-if="outputImage" :src="outputImage" alt="Generated Image" />
   </div>
 </template>
 
@@ -19,8 +15,7 @@ export default {
     return {
       isLoading: false,
       message: '',
-      outputAudio: null,
-      responseData: null
+      outputImage: null
     }
   },
   methods: {
@@ -30,8 +25,7 @@ export default {
     async prediction() {
       this.isLoading = true;
       this.message = '';
-      this.outputAudio = null;
-      this.responseData = null;
+      this.outputImage = null;
 
       let user = new User()
       let is_login = await user.islogin()
@@ -60,27 +54,30 @@ export default {
       const ai = new AI(ai_options)
       
       try {
-        let response = await ai.prediction("/predictions/ai/xtts-v2",
+        let response = await ai.prediction("/predictions/ai/stable-diffusion-3",
         {
           input:{
-            "text": "Hi there, I'm your new voice clone. Try your best to upload quality audio",
-            "speaker": "https://aonet.ai/pbxt/Jt79w0xsT64R1JsiJ0LQRL8UcWspg5J4RFrU6YwEKpOT1ukS/male.wav",
-            "language": "en",
-            "cleanup_voice": false
+            "prompt": "with smoke, half ice and half fire and ultra realistic in detail.wolf, typography, dark fantasy, wildlife photography, vibrant, cinematic and on a black background",
+            "cfg": 3.5,
+            "steps": 28,
+            "aspect_ratio": "9:16",
+            "output_format": "png",
+            "output_quality": 90,
+            "negative_prompt": "",
+            "prompt_strength": 0.85
           }
         }, price);
 
-        if (response && response.code === 200 && response.data) {
+        if (response && response.code == 200 && response.data) {
           response = response.data
         }
 
-        if (response.task.exec_code === 200 && response.task.is_success) {
-          console.log("Audio URL:", response.output[0]);
-          this.outputAudio = response.output[0];  // Ensure this URL points to the audio file
-          this.responseData = response;
-          this.message = "Audio generated successfully!";
+        if (response.task.exec_code == 200 && response.task.is_success) {
+          console.log("test", response.output);
+          this.outputImage = response.output;
+          this.message = "Image generated successfully!";
         } else {
-          this.message = "Failed to generate audio. Please try again.";
+          this.message = "Failed to generate image. Please try again.";
         }
       } catch (error) {
         console.error("Error in prediction:", error);
@@ -97,14 +94,9 @@ export default {
 button {
   margin-bottom: 10px;
 }
-audio {
+img {
   max-width: 100%;
   height: auto;
 }
-pre {
-  background-color: #f8f8f8;
-  padding: 10px;
-  border-radius: 5px;
-  overflow-x: auto;
-}
 </style>
+Made with
