@@ -38,12 +38,13 @@ const prediction = async () => {
 
     let price = 1
     const ai = new AI(ai_options)
-    let voiceResponse = await ai.prediction("/predictions/ai/xtts-v2", {
+    let response = await ai.prediction("/predictions/ai/sadtalker", {
         input: {
-            "text": "Hi there, I'm your new voice clone. Try your best to upload quality audio",
-            "speaker": "https://aonet.ai/pbxt/Jt79w0xsT64R1JsiJ0LQRL8UcWspg5J4RFrU6YwEKpOT1ukS/male.wav",
-            "language": "en",
-            "cleanup_voice": false
+            "still": true,
+            "enhancer": "gfpgan",
+            "preprocess": "full",
+            "driven_audio": "https://aonet.ai/pbxt/Jf1gczNATWiC94VPrsTTLuXI0ZmtuZ6k0aWBcQpr7VuRc5f3/japanese.wav",
+            "source_image": "https://replicate.delivery/pbxt/Jf1gcsODejVsGRd42eeUj0RXX11zjxzHuLuqXmVFwMAi2tZq/art_1.png"
         }
     }, price);
 
